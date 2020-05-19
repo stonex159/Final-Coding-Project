@@ -117,19 +117,30 @@ public class LoanCalcViewController implements Initializable {
 
 	@FXML
 	private AnchorPane apAreaChart;
+	
+	@FXML
+	private AnchorPane apBarChart;
 
 	@FXML
 	private AreaChart<Number, Number> areaChartAmortization = null;
+	
+	@FXML
+	private AreaChart<Number, Number> barChartAmortization = null;
 
 	@FXML
 	private HBox hbChart;
+	
+	@FXML
+	private HBox hbChart2;
 
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
 
 		cmbLoanType.getItems().addAll("Home", "Auto", "School");
 
-		// TODO: Default cmbLoanType to select 'Home' as the default loan type
+		// Default cmbLoanType to select 'Home' as the default loan type
+		// cmbLoanType.setItems(cmbLoanType.getItems());
+		cmbLoanType.setValue("Home");
 
 		cmbLoanType.valueProperty().addListener(new ChangeListener<String>() {
 			@Override
@@ -189,7 +200,8 @@ public class LoanCalcViewController implements Initializable {
 
 	@FXML
 	private void btnClearResultsKeyPress(KeyEvent event) {
-		// TODO: Call the method to clear the results
+		// Call the method to clear the results
+		btnClearResults(null);
 	}
 
 	/**
@@ -203,31 +215,79 @@ public class LoanCalcViewController implements Initializable {
 
 		paymentList.clear();
 		hbChart.getChildren().clear();
+		hbChart2.getChildren().clear();
 
-		// TODO: Clear all the output labels (lblTotalPayemnts, lblTotalInterest, etc)
 		lblTotalPayemnts.setText("");
+		lblTotalInterest.setText("");
+		lblInterestSaved.setText("");
+		lblPaymentsSaved.setText("");
+		lblMonthlyPayment.setText("");
+		
 	}
 
 	private boolean ValidateData() {
-		// TODO: Only show one alert message. If there are three errors,
+		// Only show one alert message. If there are three errors,
 		// show one Alert with all three errors.
 		// Hint: Use StringBuilder for the 'setContentText' message.
-
+		
+		StringBuilder Alerts = new StringBuilder();
+		boolean cAlert = false;
+		
 		// Validate LoanAmount isn't empty
 		if (LoanAmount.getText().trim().isEmpty()) {
+			Alerts.append("Loan Amount is required\n");
+			cAlert = true;
+		}
+
+		// Validate LoanAmount is a positive double
+		if (Double.parseDouble(LoanAmount.getText().trim()) <= 0) {
+			Alerts.append("Loan Amount is not a postive double\n");
+			cAlert = true;
+		}
+		// Validate InterestRate is not blank and is a positive double. Validate
+		// that the value is between 1 and 30 (2.99 = 2.99%, not 0.0299)
+		if (InterestRate.getText().trim().isBlank()) {
+			Alerts.append("No Interest Rate given\n");
+			cAlert = true;
+		} else if (Double.parseDouble(InterestRate.getText().trim()) <= 0) {
+			Alerts.append("Interest Rate is not a positive double\n");
+			cAlert = true;
+		} else if (Double.parseDouble(InterestRate.getText().trim()) < 1 || Double.parseDouble(InterestRate.getText().trim()) > 30) {
+			Alerts.append("Interest Rate is not between 1 and 30 percent\n");
+			cAlert = true;
+		}
+		
+		// Validate NbrOfYears is a non blank positive integer
+		if (NbrOfYears.getText().trim().isBlank()) {
+			Alerts.append("Number of Years not given\n");
+			cAlert = true;
+		} else if (Integer.parseInt(NbrOfYears.getText().trim()) < 1) {
+			Alerts.append("Number of Years is not a positive integer\n");
+			cAlert = true;
+		}
+		// Validate AdditionalPayment, if given, is a positive double
+		if (AdditionalPayment.getText().trim().isBlank() == false) {
+			if (Double.parseDouble(AdditionalPayment.getText().trim()) < 0) {
+			Alerts.append("Additional Payment is not a positive double\n");
+			cAlert = true;
+			}
+		}
+		// Validate EscrowAmount, if given, is a positive double
+		if (EscrowAmount.getText().trim().isBlank() == false) {
+			if (Double.parseDouble(EscrowAmount.getText().trim()) < 0) {
+			Alerts.append("Escrow Amount is not a positive double\n");
+			cAlert = true;
+			}
+		}
+		
+		if (cAlert)
+		{
 			Alert fail = new Alert(AlertType.ERROR);
-			fail.setHeaderText("Missing Data");
-			fail.setContentText("Loan Amount is required");
+			fail.setHeaderText("Validation Error");
+			fail.setContentText(Alerts.toString());
 			fail.showAndWait();
 			return false;
 		}
-
-		// TODO: Validate LoanAmount is a positive double
-		// TODO: Validate InterestRate is not blank and is a positive double. Validate
-		// that the value is between 1 and 30 (2.99 = 2.99%, not 0.0299)
-		// TODO: Validate NbrOfYears is a non blank positive integer
-		// TODO: Validate AdditionalPayment, if given, is a positive double
-		// TODO: Validate EscrowAmount, if given, is a positive double
 
 		return true;
 	}
@@ -241,7 +301,8 @@ public class LoanCalcViewController implements Initializable {
 	@FXML
 	private void btnCalcLoan(ActionEvent event) {
 
-		// TODO: Call the method to Clear the Results
+		// Call the method to Clear the Results
+		btnClearResults(event);
 
 		// Validate the data. If the method returns 'false', exit the method
 		if (ValidateData() == false)
@@ -251,8 +312,7 @@ public class LoanCalcViewController implements Initializable {
 		double dLoanAmount = Double.parseDouble(LoanAmount.getText());
 		double dInterestRate = Double.parseDouble(InterestRate.getText()) / 100;
 		int dNbrOfYears = Integer.parseInt(NbrOfYears.getText());
-		double dAdditionalPayment = (this.AdditionalPayment.getText().isEmpty() ? 0
-				: Double.parseDouble(AdditionalPayment.getText()));
+		double dAdditionalPayment = (this.AdditionalPayment.getText().isEmpty() ? 0 : Double.parseDouble(AdditionalPayment.getText()));
 		double dEscrow = (this.EscrowAmount.getText().isEmpty() ? 0 : Double.parseDouble(this.EscrowAmount.getText()));
 		LocalDate localDate = PaymentStartDate.getValue();
 
@@ -264,15 +324,18 @@ public class LoanCalcViewController implements Initializable {
 		}
 
 		NumberFormat fmtCurrency = NumberFormat.getCurrencyInstance(Locale.US);
-		lblTotalPayemnts.setText(fmtCurrency.format(loanExtra.getTotalPayments()));
-		// TODO: Set lblTotalInterest label with loanExtra's total interest payments
+		lblTotalPayemnts.setText(fmtCurrency.format(loanExtra.getTotalPayments()+loanExtra.getAdditionalPayment()*loanExtra.getLoanPaymentCnt()));
+		
+		// Set lblTotalInterest label with loanExtra's total interest payments
+		lblTotalInterest.setText(fmtCurrency.format(loanExtra.getTotalInterest()));
 
-		// TODO: Set lblTotalInterest label with loanExtra's PMT
+		// Set lblTotalInterest label with loanExtra's PMT
+		lblMonthlyPayment.setText(fmtCurrency.format(loanExtra.GetPMT()));
 
-		// TODO: Set lblInterestSaved to the total interest saved
+		// Set lblInterestSaved to the total interest saved
+		lblInterestSaved.setText(fmtCurrency.format(loanNoExtra.getTotalInterest() - loanExtra.getTotalInterest()));
 
-		lblPaymentsSaved
-				.setText(String.valueOf(loanNoExtra.getLoanPayments().size() - loanExtra.getLoanPayments().size()));
+		lblPaymentsSaved.setText(String.valueOf(loanNoExtra.getLoanPayments().size() - loanExtra.getLoanPayments().size()));
 
 		XYChart.Series seriesExtra = new XYChart.Series();
 		XYChart.Series seriesNoExtra = new XYChart.Series();
@@ -311,6 +374,42 @@ public class LoanCalcViewController implements Initializable {
 			}
 		}
 		hbChart.getChildren().add(areaChartAmortization);
+		
+		CreateStackedBarChart();
+	}
+	
+	private void CreateStackedBarChart() {
+		CategoryAxis xAxis = new CategoryAxis();
+		ArrayList<String> dates = new ArrayList<String>();
+		// Prepare XYChart.Series Objects
+		XYChart.Series<String, Number> principalPayments = new XYChart.Series<>();
+		principalPayments.setName("Principle");
+		XYChart.Series<String, Number> interestPayments = new XYChart.Series<>();
+		interestPayments.setName("Interest");
+	
+		for (Payment P : paymentList) {
+			if (!dates.contains(Integer.toString(P.getDueDate().getYear()))) {
+				dates.add(Integer.toString(P.getDueDate().getYear()));
+			}
+			
+			principalPayments.getData().add(new XYChart.Data<String, Number>(Integer.toString(P.getDueDate().getYear()), P.getPrinciple()+P.getAdditionalPayment()));
+			interestPayments.getData().add(new XYChart.Data<String, Number>(Integer.toString(P.getDueDate().getYear()), P.getInterestPayment()));
+		
+		}
+		
+		xAxis.setCategories(FXCollections.<String>observableArrayList(dates));
+		xAxis.setLabel("Year");
+		NumberAxis yAxis = new NumberAxis();
+		yAxis.setLabel("Amount (USD)");
+		
+		// Creating the Bar chart
+		StackedBarChart<String, Number> barChartAmortization = new StackedBarChart<>(xAxis, yAxis);
+		barChartAmortization.setTitle("Monthly Payments");
+		
+		// Setting the data to the bar chart
+		barChartAmortization.getData().addAll(principalPayments, interestPayments);
+		hbChart2.getChildren().add(barChartAmortization);
+		
 	}
 
 	/**
@@ -1014,6 +1113,7 @@ public class LoanCalcViewController implements Initializable {
 		}
 
 		apAreaChart.getChildren().add(ac);
+		apBarChart.getChildren().add(ac);
 
 	}
 
